@@ -1,6 +1,7 @@
 package com.github.myuwono.kafka;
 
 import io.reactivex.Observable;
+import io.reactivex.schedulers.Timed;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerRecord;
@@ -10,6 +11,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Optional;
 import java.util.Properties;
+import java.util.concurrent.TimeUnit;
 
 public class RxJavaProducer {
 
@@ -38,11 +40,15 @@ public class RxJavaProducer {
                 .flatMap(v -> just)
                 .buffer(10)
                 .map(words -> String.join(" ", words))
-                .map(line -> {
-                    log.info("sending {}", line);
-                    return line;
-                })
-                .subscribe(RxJavaProducer::sendToKafka);
+//                .doOnNext(line -> log.info("sending {}", line))
+                .doOnNext(RxJavaProducer::sendToKafka)
+                .timeInterval()
+                .sample(1, TimeUnit.SECONDS)
+                .subscribe(
+                    stringTimed -> log.info("Interval sample {}ms", stringTimed.time()),
+                    e -> log.error("error!", e),
+                    () -> log.info("complete")
+                );
 
         PRODUCER.close();
     }
